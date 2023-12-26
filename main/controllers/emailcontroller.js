@@ -1,6 +1,9 @@
 import nodemailer from 'nodemailer';
-import pool from '../helpers/db';
-import { getRooms } from './roomcontroller';
+//import pool from '../helpers/db';
+import { PrismaClient } from '@prisma/client';
+require('dotenv').config();
+
+const prisma = new PrismaClient();
 
 const Emailsender = async (req, res) => {
     console.log("Emailsender function called");
@@ -10,44 +13,44 @@ const Emailsender = async (req, res) => {
 
     try {
         //console.log("Fetching bill details for room ID:", room_id);
-        const query = `
-            SELECT r.room_number, b.*
-            FROM rooms r
-            JOIN bills b ON r.room_id = b.room_id
-            WHERE r.room_id = $1
-            ORDER BY b.bill_date DESC
-            LIMIT 1
-        `;
+        const bills = await prisma.bills.findFirst({
+            where: {
+                room_id: parseInt(room_id), // Ensure room_id is an integer
+            },
+            include: {
+                rooms: true, // Include room details
+            },
+            orderBy: {
+                bill_date: 'desc',
+            },
+        });
 
-        const { rows } = await pool.query(query, [room_id]);
-        if (rows.length === 0) {
+        if (!bills) {
             console.log("No bill details found for room ID:", room_id);
             return res.status(404).json({ message: 'No bill details found for the specified room ID.' });
         }
 
-        const { room_number, water_usage, electricity_usage, water_cost, electricity_cost, additional_rates_cost, total_amount } = rows[0];
-
         // Format the email content with bill details and the additional message
-        const emailContent = `${message}\n\nBill Details for Room Number: ${room_number}
-        \nWater Usage: ${water_usage}
-        \nElectricity Usage: ${electricity_usage}
-        \nWater Cost: ${water_cost}
-        \nElectricity Cost: ${electricity_cost}
-        \nAdditional Rates Cost: ${additional_rates_cost}
-        \nTotal Bill Amount: ${total_amount}`;
+        const emailContent = `${message}\n\nBill Details for Room Number: ${bills.rooms.room_number}
+        \nWater Usage: ${bills.water_usage}
+        \nElectricity Usage: ${bills.electricity_usage}
+        \nWater Cost: ${bills.water_cost}
+        \nElectricity Cost: ${bills.electricity_cost}
+        \nAdditional Rates Cost: ${bills.additional_rates_cost}
+        \nTotal Bill Amount: ${bills.total_amount}`;
         // Set up Nodemailer transporter
         const transporter = nodemailer.createTransport({
             service: 'gmail',
             auth: {
-                user: 'legendaryzwe@gmail.com', // Make sure these credentials are secured
-                pass: 'pjwz jjsw ixxc mtkz'
+                user: process.env.emailaccount, // Make sure these credentials are secured
+                pass: process.env.emailpassword
             }
         });
 
         console.log("Sending email to:", to);
         // Send email
         await transporter.sendMail({
-            from: 'legendaryzwe@gmail.com',
+            from: process.env.emailaccount,
             to: to,
             subject: subject,
             text: emailContent,

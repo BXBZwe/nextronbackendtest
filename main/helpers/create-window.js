@@ -12,7 +12,7 @@ export const createWindow = (windowName, options) => {
   let state = {}
 
   const restore = () => store.get(key, defaultSize)
-
+  
   const getCurrentPosition = () => {
     const position = win.getPosition()
     const size = win.getSize()
