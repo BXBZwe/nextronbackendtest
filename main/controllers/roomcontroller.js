@@ -1,11 +1,19 @@
 // main/controllers/roomController.js
 
-import pool from '../helpers/db';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const getRooms = async (req, res) => {
     try {
-        const result = await pool.query('SELECT room_id, room_number FROM rooms');
-        res.json(result.rows);
+        // Fetch rooms using Prisma
+        const rooms = await prisma.rooms.findMany({
+            select: {
+                room_id: true,
+                room_number: true,
+            },
+        });
+        res.json(rooms);
     } catch (error) {
         console.error('Error fetching rooms:', error);
         res.status(500).json({ error: error.message });
